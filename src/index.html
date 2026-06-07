@@ -7,12 +7,23 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Invisible hit zones along the window edges. On this frameless window the
+         OS draws no resize border, so these drive resizing via startResizeDragging
+         (see main.js). They live in the transparent shadow margin, outside the card. -->
+    <div class="resize-handle rh-n" data-dir="North"></div>
+    <div class="resize-handle rh-s" data-dir="South"></div>
+    <div class="resize-handle rh-e" data-dir="East"></div>
+    <div class="resize-handle rh-w" data-dir="West"></div>
+    <div class="resize-handle rh-ne" data-dir="NorthEast"></div>
+    <div class="resize-handle rh-nw" data-dir="NorthWest"></div>
+    <div class="resize-handle rh-se" data-dir="SouthEast"></div>
+    <div class="resize-handle rh-sw" data-dir="SouthWest"></div>
     <div class="window">
       <div class="titlebar" data-tauri-drag-region>
         <div class="traffic-lights">
-          <button type="button" class="light close" id="winClose" aria-label="Close window"></button>
-          <button type="button" class="light minimize" id="winMin" aria-label="Minimize window"></button>
-          <button type="button" class="light zoom" id="winZoom" aria-label="Toggle always on top" tabindex="-1"></button>
+          <button type="button" class="light close" id="winClose" data-i18n-aria-label="aria.close" aria-label="Close window"></button>
+          <button type="button" class="light minimize" id="winMin" data-i18n-aria-label="aria.minimize" aria-label="Minimize window"></button>
+          <button type="button" class="light zoom" id="winZoom" data-i18n-aria-label="aria.zoom" aria-label="Toggle always on top" tabindex="-1"></button>
         </div>
         <span class="titlebar-title" data-tauri-drag-region>Stacco</span>
         <div id="statusPill" class="pill" data-running="false">
@@ -24,7 +35,7 @@
       <main class="app">
       <!-- Interval -->
       <section class="field">
-        <label class="field-label" for="intervalValue">Interval</label>
+        <label class="field-label" for="intervalValue" data-i18n="field.interval">Interval</label>
         <div class="row">
           <input id="intervalValue" class="input" type="number" min="1" value="100" />
           <div id="intervalUnit" class="dropdown" data-value="ms">
@@ -36,8 +47,8 @@
             </button>
             <ul class="dropdown-menu" role="listbox">
               <li class="dropdown-item" role="option" data-value="ms">ms</li>
-              <li class="dropdown-item" role="option" data-value="s">sec</li>
-              <li class="dropdown-item" role="option" data-value="min">min</li>
+              <li class="dropdown-item" role="option" data-value="s" data-i18n="unit.sec">sec</li>
+              <li class="dropdown-item" role="option" data-value="min" data-i18n="unit.min">min</li>
             </ul>
           </div>
         </div>
@@ -45,88 +56,115 @@
 
       <!-- Jitter / randomness -->
       <section class="field">
-        <label class="field-label">Jitter (randomness)</label>
+        <label class="field-label" data-i18n="field.jitter">Jitter (randomness)</label>
         <div class="row">
           <input id="jitterInterval" class="input" type="number" min="0" max="100" value="0" />
-          <span class="suffix">% time</span>
+          <span class="suffix" data-i18n="suffix.timePct">% time</span>
           <input id="jitterPosition" class="input" type="number" min="0" value="0" />
-          <span class="suffix">px pos</span>
+          <span class="suffix" data-i18n="suffix.posPx">px pos</span>
         </div>
       </section>
 
       <!-- Mouse button -->
       <section class="field">
-        <label class="field-label">Mouse button</label>
+        <label class="field-label" data-i18n="field.button">Mouse button</label>
         <div class="segmented" data-group="button">
-          <button type="button" class="seg" data-value="left">Left</button>
-          <button type="button" class="seg" data-value="right">Right</button>
-          <button type="button" class="seg" data-value="middle">Middle</button>
+          <button type="button" class="seg" data-value="left" data-i18n="button.left">Left</button>
+          <button type="button" class="seg" data-value="right" data-i18n="button.right">Right</button>
+          <button type="button" class="seg" data-value="middle" data-i18n="button.middle">Middle</button>
         </div>
       </section>
 
       <!-- Click type -->
       <section class="field">
-        <label class="field-label">Click type</label>
+        <label class="field-label" data-i18n="field.clickType">Click type</label>
         <div class="segmented" data-group="clickType">
-          <button type="button" class="seg" data-value="single">Single</button>
-          <button type="button" class="seg" data-value="double">Double</button>
+          <button type="button" class="seg" data-value="single" data-i18n="clickType.single">Single</button>
+          <button type="button" class="seg" data-value="double" data-i18n="clickType.double">Double</button>
         </div>
       </section>
 
       <!-- Position -->
       <section class="field">
-        <label class="field-label">Position</label>
+        <label class="field-label" data-i18n="field.position">Position</label>
         <div class="segmented" data-group="position">
-          <button type="button" class="seg" data-value="current">At cursor</button>
-          <button type="button" class="seg" data-value="fixed">Fixed point</button>
+          <button type="button" class="seg" data-value="current" data-i18n="position.current">At cursor</button>
+          <button type="button" class="seg" data-value="fixed" data-i18n="position.fixed">Fixed point</button>
         </div>
         <div id="fixedPanel" class="subpanel hidden">
           <div class="row">
             <input id="posX" class="input" type="number" value="0" placeholder="X" />
             <input id="posY" class="input" type="number" value="0" placeholder="Y" />
-            <button id="captureBtn" type="button" class="ghost-btn">Capture</button>
+            <button id="captureBtn" type="button" class="ghost-btn" data-i18n="btn.capture">Capture</button>
           </div>
-          <p class="hint">Capture waits 3 s, then reads the cursor position.</p>
+          <p id="captureHint" class="hint">Capture waits 3 s, then reads the cursor position.</p>
         </div>
       </section>
 
       <!-- Repeat -->
       <section class="field">
-        <label class="field-label">Repeat</label>
+        <label class="field-label" data-i18n="field.repeat">Repeat</label>
         <div class="segmented" data-group="repeat">
-          <button type="button" class="seg" data-value="until_stopped">Until stopped</button>
-          <button type="button" class="seg" data-value="count">Fixed count</button>
+          <button type="button" class="seg" data-value="until_stopped" data-i18n="repeat.untilStopped">Until stopped</button>
+          <button type="button" class="seg" data-value="count" data-i18n="repeat.count">Fixed count</button>
         </div>
         <div id="countPanel" class="subpanel hidden">
           <div class="row">
             <input id="repeatTimes" class="input" type="number" min="1" value="50" />
-            <span class="suffix">clicks</span>
+            <span class="suffix" data-i18n="suffix.clicks">clicks</span>
           </div>
         </div>
       </section>
 
       <!-- Hotkey -->
       <section class="field">
-        <label class="field-label" for="hotkeyInput">Toggle hotkey</label>
+        <label class="field-label" for="hotkeyInput" data-i18n="field.hotkey">Toggle hotkey</label>
         <div class="row">
           <input id="hotkeyInput" class="input" type="text" value="F6" spellcheck="false" />
-          <button id="hotkeyBtn" type="button" class="ghost-btn">Set</button>
+          <button id="hotkeyBtn" type="button" class="ghost-btn" data-i18n="btn.set">Set</button>
         </div>
       </section>
 
       <!-- Close behavior -->
       <section class="field">
-        <label class="field-label">On window close</label>
+        <label class="field-label" data-i18n="field.close">On window close</label>
         <div class="segmented" data-group="closeBehavior">
-          <button type="button" class="seg" data-value="ask">Ask</button>
-          <button type="button" class="seg" data-value="tray">Tray</button>
-          <button type="button" class="seg" data-value="quit">Quit</button>
+          <button type="button" class="seg" data-value="ask" data-i18n="close.ask">Ask</button>
+          <button type="button" class="seg" data-value="tray" data-i18n="close.tray">Tray</button>
+          <button type="button" class="seg" data-value="quit" data-i18n="close.quit">Quit</button>
+        </div>
+      </section>
+
+      <!-- Language -->
+      <section class="field">
+        <label class="field-label" data-i18n="field.language">Language</label>
+        <div class="row">
+          <div id="languageSelect" class="dropdown wide drop-up" data-value="system">
+            <button type="button" class="dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="dropdown-label">System</span>
+              <svg class="dropdown-chevron" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.5 6.5 5 4l2.5 2.5M2.5 9.5 5 12l2.5-2.5" />
+              </svg>
+            </button>
+            <ul class="dropdown-menu" role="listbox">
+              <li class="dropdown-item" role="option" data-value="system" data-i18n="language.system">System</li>
+              <li class="dropdown-item" role="option" data-value="en">English</li>
+              <li class="dropdown-item" role="option" data-value="ru">Русский</li>
+              <li class="dropdown-item" role="option" data-value="de">Deutsch</li>
+              <li class="dropdown-item" role="option" data-value="fr">Français</li>
+              <li class="dropdown-item" role="option" data-value="es">Español</li>
+              <li class="dropdown-item" role="option" data-value="it">Italiano</li>
+              <li class="dropdown-item" role="option" data-value="pt">Português</li>
+              <li class="dropdown-item" role="option" data-value="zh">简体中文</li>
+              <li class="dropdown-item" role="option" data-value="ja">日本語</li>
+            </ul>
+          </div>
         </div>
       </section>
 
       <!-- Live stats + main action -->
       <div class="stats">
-        <span class="stats-label">Clicks</span>
+        <span class="stats-label" data-i18n="stats.clicks">Clicks</span>
         <span id="clickCount" class="stats-value">0</span>
       </div>
 
@@ -138,23 +176,24 @@
       <div id="closeDialog" class="alert-overlay hidden" role="presentation">
         <div class="alert" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
           <img class="alert-icon" src="icon.png" alt="" />
-          <h2 id="alertTitle" class="alert-title">Close Stacco?</h2>
-          <p class="alert-text">
+          <h2 id="alertTitle" class="alert-title" data-i18n="dialog.title">Close Stacco?</h2>
+          <p class="alert-text" data-i18n="dialog.text">
             Stacco can keep running in the tray, where the hotkey still works —
             or quit completely.
           </p>
           <label class="alert-remember">
             <input type="checkbox" id="closeRemember" checked />
-            Remember my choice
+            <span data-i18n="dialog.remember">Remember my choice</span>
           </label>
           <div class="alert-buttons">
-            <button type="button" class="alert-btn" id="closeQuit">Quit</button>
-            <button type="button" class="alert-btn primary" id="closeTray">Keep in Tray</button>
+            <button type="button" class="alert-btn" id="closeQuit" data-i18n="dialog.quit">Quit</button>
+            <button type="button" class="alert-btn primary" id="closeTray" data-i18n="dialog.keepTray">Keep in Tray</button>
           </div>
         </div>
       </div>
     </div>
 
+    <script src="i18n.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

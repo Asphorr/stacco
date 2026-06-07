@@ -20,8 +20,8 @@ mod hotkey;
 mod input;
 mod persistence;
 mod state;
+mod tray;
 
-use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton as TrayButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Runtime, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
@@ -95,17 +95,11 @@ pub fn run() {
             // Left-click shows the window; the menu offers Show / Start-Stop / Quit.
             let handle = app.handle().clone();
             if let Some(icon) = handle.default_window_icon().cloned() {
-                let show_i = MenuItemBuilder::with_id("show", "Show Window").build(&handle)?;
-                let toggle_i = MenuItemBuilder::with_id("toggle", "Start / Stop").build(&handle)?;
-                let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(&handle)?;
-                let menu = MenuBuilder::new(&handle)
-                    .item(&show_i)
-                    .item(&toggle_i)
-                    .separator()
-                    .item(&quit_i)
-                    .build()?;
+                // Start with the built-in English labels; the frontend pushes
+                // the user's locale via `set_tray_labels` as soon as it loads.
+                let menu = tray::build_menu(&handle, &tray::TrayLabels::default())?;
 
-                TrayIconBuilder::with_id("main-tray")
+                TrayIconBuilder::with_id(tray::TRAY_ID)
                     .icon(icon)
                     .tooltip("Stacco")
                     .menu(&menu)
@@ -116,14 +110,14 @@ pub fn run() {
                         "quit" => app.exit(0),
                         _ => {}
                     })
-                    .on_tray_icon_event(|tray, event| {
+                    .on_tray_icon_event(|tray_icon, event| {
                         if let TrayIconEvent::Click {
                             button: TrayButton::Left,
                             button_state: MouseButtonState::Up,
                             ..
                         } = event
                         {
-                            show_main_window(tray.app_handle());
+                            show_main_window(tray_icon.app_handle());
                         }
                     })
                     .build(&handle)?;
@@ -141,6 +135,7 @@ pub fn run() {
             commands::set_hotkey,
             commands::save_config,
             commands::apply_close,
+            commands::set_tray_labels,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

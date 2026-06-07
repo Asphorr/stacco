@@ -10,6 +10,7 @@ use crate::engine::Status;
 use crate::error::Result;
 use crate::input::Point;
 use crate::state::AppState;
+use crate::tray::{self, TrayLabels};
 use crate::{hotkey, persistence};
 
 /// Returns the configuration the UI should render on startup.
@@ -68,6 +69,13 @@ pub fn set_hotkey(app: AppHandle, hotkey: String, state: State<'_, AppState>) ->
 #[tauri::command]
 pub fn save_config(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
     persistence::save(&app, &state.config())
+}
+
+/// Applies the frontend's current locale to the native system-tray menu. The
+/// backend stores no translations of its own — it just renders what it is told.
+#[tauri::command]
+pub fn set_tray_labels(app: AppHandle, labels: TrayLabels) -> Result<()> {
+    tray::set_labels(&app, &labels)
 }
 
 /// Resolves the close dialog: optionally remembers the choice as the new close

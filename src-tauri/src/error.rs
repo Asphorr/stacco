@@ -25,6 +25,10 @@ pub enum Error {
     #[error("hotkey error: {0}")]
     Hotkey(String),
 
+    /// Updating the system-tray menu (e.g. relocalizing its labels) failed.
+    #[error("tray error: {0}")]
+    Tray(String),
+
     /// A filesystem path could not be resolved.
     #[error("path error: {0}")]
     Path(String),

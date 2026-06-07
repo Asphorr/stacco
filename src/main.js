@@ -10,6 +10,10 @@ const TAURI = window.__TAURI__;
 const invoke = TAURI?.core?.invoke;
 const listen = TAURI?.event?.listen;
 
+// Internationalization (see i18n.js, loaded first). `t` is the per-call shorthand.
+const I18N = window.I18N;
+const t = (key, params) => I18N.t(key, params);
+
 const UNIT_MS = { ms: 1, s: 1000, min: 60000 };
 const STATUS_POLL_MS = 120;
 const SYNC_DEBOUNCE_MS = 250;
@@ -38,6 +42,8 @@ const closeDialog = $("closeDialog");
 const closeRemember = $("closeRemember");
 const closeTray = $("closeTray");
 const closeQuit = $("closeQuit");
+const captureHint = $("captureHint");
+const langDropdown = setupDropdown($("languageSelect"), (code) => onLanguageChange(code));
 
 /** Mirrors the engine's running state so we only touch the DOM on transitions. */
 let running = false;
@@ -217,6 +223,7 @@ function readConfig() {
     jitter,
     hotkey: hotkeyInput.value.trim() || "F6",
     closeBehavior: getSeg("closeBehavior") || "ask",
+    language: langDropdown.getValue(),
   };
 }
 
@@ -279,15 +286,24 @@ async function pollStatus() {
 }
 
 function applyStatus(status) {
-  clickCount.textContent = status.clicks.toLocaleString();
+  clickCount.textContent = status.clicks.toLocaleString(I18N.active());
   if (status.running === running) return; // no transition: nothing else to do
 
   running = status.running;
-  statusPill.dataset.running = String(running);
-  statusText.textContent = running ? "Running" : "Idle";
-  toggleBtn.textContent = running ? "Stop" : "Start";
-  toggleBtn.classList.toggle("running", running);
+  renderRunningState();
   setControlsLocked(running);
+}
+
+/**
+ * Reflects the current `running` state into the status pill and main button in
+ * the active language. Separate from `applyStatus` so a language change can
+ * re-render the labels without a state transition.
+ */
+function renderRunningState() {
+  statusPill.dataset.running = String(running);
+  statusText.textContent = running ? t("status.running") : t("status.idle");
+  toggleBtn.textContent = running ? t("action.stop") : t("action.start");
+  toggleBtn.classList.toggle("running", running);
 }
 
 /** Disables the settings while a session is running for unambiguous behavior. */
@@ -352,7 +368,7 @@ async function onSetHotkey() {
   try {
     await invoke("set_hotkey", { hotkey: hotkeyInput.value.trim() });
     await invoke("save_config");
-    showMessage("Hotkey updated.", true);
+    showMessage(t("msg.hotkeyUpdated"), true);
   } catch (err) {
     showMessage(String(err));
   }
@@ -366,6 +382,47 @@ function showMessage(text, info = false) {
 
 function clearMessage() {
   message.textContent = "";
+}
+
+// ---------- Language ----------
+/** Re-syncs the popup-button labels to the current locale (their <li> text is
+ *  translated in place by `I18N.apply`, so re-selecting refreshes the trigger). */
+function refreshDropdownLabels() {
+  unitDropdown.setValue(unitDropdown.getValue());
+  langDropdown.setValue(langDropdown.getValue());
+}
+
+/** The one parameterized static string (the capture countdown). */
+function renderCaptureHint() {
+  captureHint.textContent = t("hint.capture", { n: CAPTURE_COUNTDOWN });
+}
+
+/** Pushes the active locale's labels to the native system-tray menu. */
+async function pushTrayLabels() {
+  if (!invoke) return;
+  try {
+    await invoke("set_tray_labels", {
+      labels: {
+        show: t("tray.show"),
+        toggle: t("tray.toggle"),
+        quit: t("tray.quit"),
+        tooltip: t("tray.tooltip"),
+      },
+    });
+  } catch {
+    // The tray is optional (and absent off Windows); a failure is non-fatal.
+  }
+}
+
+/** Switches the whole UI to `code` and persists the choice with the config. */
+function onLanguageChange(code) {
+  I18N.setLanguage(code);
+  I18N.apply(document); // static text + <html lang>
+  refreshDropdownLabels(); // unit + language trigger labels
+  renderCaptureHint();
+  renderRunningState(); // dynamic status/button text for the current state
+  pushTrayLabels();
+  scheduleSync(); // persist `language` via the usual debounced set_config/save
 }
 
 // ---------- Wiring ----------
@@ -425,6 +482,36 @@ async function wireWindowChrome() {
   } catch {
     // Focus tracking is purely cosmetic; ignore if unavailable.
   }
+
+  // Frameless-window resizing: each edge/corner hit zone starts a native
+  // resize drag in its compass direction (data-dir).
+  document.querySelectorAll(".resize-handle").forEach((handle) => {
+    handle.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || !handle.dataset.dir) return; // primary button only
+      e.preventDefault();
+      appWindow.startResizeDragging(handle.dataset.dir).catch(() => {});
+    });
+  });
+
+  // Track the maximized state so the card can shed its shadow margin and
+  // rounded corners. Debounced because onResized fires rapidly during a drag.
+  const syncMaximized = async () => {
+    try {
+      document.body.classList.toggle("maximized", await appWindow.isMaximized());
+    } catch {
+      // isMaximized may be unavailable; the rounded card is a safe default.
+    }
+  };
+  let maxTimer = null;
+  try {
+    await appWindow.onResized(() => {
+      clearTimeout(maxTimer);
+      maxTimer = setTimeout(syncMaximized, 80);
+    });
+  } catch {
+    // Resize events are optional; ignore if unavailable.
+  }
+  await syncMaximized();
 }
 
 // ---------- Close dialog (macOS-style alert) ----------
@@ -462,19 +549,40 @@ function wireCloseDialog() {
 
 // ---------- Init ----------
 async function init() {
+  // Load the config first — it carries the saved language — but tolerate a
+  // failure so the UI still localizes itself and reports the error in-language.
+  let cfg = null;
+  let loadError = null;
+  if (invoke) {
+    try {
+      cfg = await invoke("get_config");
+    } catch (err) {
+      loadError = err;
+    }
+  }
+
+  // Establish the language before any text is rendered.
+  I18N.setLanguage(cfg?.language ?? "system");
+  I18N.apply(document);
+  langDropdown.setValue(I18N.chosen());
+  refreshDropdownLabels();
+  renderCaptureHint();
+  renderRunningState();
+
   if (!invoke) {
-    showMessage("Tauri API unavailable — run inside the app window.");
+    showMessage(t("msg.tauriUnavailable"));
     return;
   }
-  try {
-    applyConfig(await invoke("get_config"));
-  } catch (err) {
-    showMessage(String(err));
+  if (cfg) {
+    applyConfig(cfg);
+  } else if (loadError) {
+    showMessage(String(loadError));
   }
 
   wireEvents();
   wireCloseDialog();
   await wireWindowChrome();
+  await pushTrayLabels();
   await pollStatus();
   setInterval(pollStatus, STATUS_POLL_MS);
 

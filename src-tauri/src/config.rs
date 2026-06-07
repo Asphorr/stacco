@@ -107,6 +107,10 @@ pub struct ClickConfig {
     pub hotkey: String,
     /// What closing the window does (ask / tray / quit).
     pub close_behavior: CloseBehavior,
+    /// UI language as an opaque locale tag — `"en"`, `"ru"`, …, or `"system"`
+    /// to follow the OS. The backend never renders it (the frontend owns every
+    /// translation), so like `hotkey` it is just a string rather than an enum.
+    pub language: String,
 }
 
 impl Default for ClickConfig {
@@ -120,6 +124,7 @@ impl Default for ClickConfig {
             jitter: Jitter::default(),
             hotkey: "F6".to_owned(),
             close_behavior: CloseBehavior::default(),
+            language: "system".to_owned(),
         }
     }
 }
@@ -208,10 +213,19 @@ mod tests {
             },
             hotkey: "CmdOrCtrl+K".to_owned(),
             close_behavior: CloseBehavior::Tray,
+            language: "ru".to_owned(),
         };
         let json = serde_json::to_string(&cfg).unwrap();
         let back: ClickConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(cfg, back);
+    }
+
+    #[test]
+    fn language_defaults_to_system_and_round_trips() {
+        // The default follows the OS; an explicit choice survives (de)serialization.
+        assert_eq!(ClickConfig::default().language, "system");
+        let cfg: ClickConfig = serde_json::from_str(r#"{"language": "ja"}"#).unwrap();
+        assert_eq!(cfg.language, "ja");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "stacco"
-version = "0.1.2"
+version = "0.2.0"
 description = "A clean, native Windows autoclicker built with Tauri and Rust."
 authors = ["ferou <misharobloxdiscord@gmail.com>"]
 license = "MIT"

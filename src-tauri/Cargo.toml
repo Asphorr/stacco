@@ -4,10 +4,11 @@ version = "0.1.1"
 description = "A clean, native Windows autoclicker built with Tauri and Rust."
 authors = ["ferou <misharobloxdiscord@gmail.com>"]
 license = "MIT"
-edition = "2021"
-# Matches the installed toolchain. Combined with the v3 resolver below, Cargo
-# automatically picks dependency versions compatible with this Rust version.
-rust-version = "1.87.0"
+edition = "2024"
+# Minimum supported Rust version. 1.88 is the floor for `let` chains (used in
+# config.rs / engine.rs); edition 2024 itself only needs 1.85. The toolchain on
+# this machine is current (1.96+) again now that the old rustup block is gone.
+rust-version = "1.88"
 
 # The Tauri command core lives in a library crate so it can be shared between
 # the desktop binary (`main.rs`) and, potentially, integration tests.
@@ -44,9 +45,7 @@ codegen-units = 1 # better optimization at the cost of compile time
 panic = "abort"   # no unwinding machinery in the shipped binary
 strip = true      # drop debug symbols from the final artifact
 
-# The v3 resolver is MSRV-aware: it defaults `incompatible-rust-versions` to
-# `fallback`, so dependencies that require a newer rustc than `rust-version`
-# above are automatically resolved to the latest version that still compiles
-# here. This single package acts as its own workspace root to opt in.
+# Edition 2024 already implies resolver v3; this explicit workspace root keeps
+# it pinned and lets the MSRV-aware resolver honor `rust-version` above.
 [workspace]
 resolver = "3"

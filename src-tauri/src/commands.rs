@@ -50,7 +50,7 @@ pub fn get_status(state: State<'_, AppState>) -> Status {
 /// Reads the current cursor position for the "capture point" button.
 #[tauri::command]
 pub fn get_cursor_position(state: State<'_, AppState>) -> Result<Point> {
-    state.engine.cursor_position()
+    state.cursor_position()
 }
 
 /// Validates and registers a new global toggle hotkey, then stores it.

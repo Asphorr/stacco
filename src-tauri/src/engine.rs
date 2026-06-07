@@ -50,7 +50,6 @@ struct Shared {
 pub struct ClickerEngine {
     tx: Sender<Command>,
     shared: Arc<Shared>,
-    backend: Arc<dyn InputBackend>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -62,16 +61,16 @@ impl ClickerEngine {
         let shared = Arc::new(Shared::default());
 
         let worker_shared = Arc::clone(&shared);
-        let worker_backend = Arc::clone(&backend);
+        // The worker is the sole owner of the backend it clicks through. Cursor
+        // queries from the UI go through the separate handle held by `AppState`.
         let worker = thread::Builder::new()
             .name("clicker-worker".to_owned())
-            .spawn(move || worker_loop(&rx, &worker_shared, worker_backend.as_ref()))
+            .spawn(move || worker_loop(&rx, &worker_shared, backend.as_ref()))
             .expect("spawning the clicker worker thread should not fail");
 
         Self {
             tx,
             shared,
-            backend,
             worker: Some(worker),
         }
     }
@@ -124,21 +123,14 @@ impl ClickerEngine {
         self.shared.running.load(Ordering::Acquire)
     }
 
-    /// A consistent snapshot of `(running, clicks)`.
+    /// A cheap snapshot of `(running, clicks)` for the UI; each field is read
+    /// with an independent atomic load, which is all the status display needs.
     #[must_use]
     pub fn status(&self) -> Status {
         Status {
             running: self.shared.running.load(Ordering::Acquire),
             clicks: self.shared.clicks.load(Ordering::Acquire),
         }
-    }
-
-    /// Reads the current cursor position (used by the "capture point" button).
-    ///
-    /// # Errors
-    /// Propagates backend failures.
-    pub fn cursor_position(&self) -> Result<Point> {
-        self.backend.cursor_position()
     }
 }
 
@@ -256,11 +248,11 @@ fn run_session(
         }
 
         let done = shared.clicks.fetch_add(1, Ordering::AcqRel) + 1;
-        if let Repeat::Count { times } = config.repeat {
-            if done >= times {
-                shared.running.store(false, Ordering::Release);
-                return SessionEnd::Idle;
-            }
+        if let Repeat::Count { times } = config.repeat
+            && done >= times
+        {
+            shared.running.store(false, Ordering::Release);
+            return SessionEnd::Idle;
         }
 
         // Wait the inter-click interval, but wake instantly for a command.
@@ -289,8 +281,8 @@ fn perform_click(backend: &dyn InputBackend, config: &ClickConfig, rng: &mut Rng
     if let Position::Fixed { x, y } = config.position {
         let (dx, dy) = jitter_offset(config.jitter.position_px, rng);
         backend.move_cursor(Point {
-            x: x + dx,
-            y: y + dy,
+            x: x.saturating_add(dx),
+            y: y.saturating_add(dy),
         })?;
     }
     backend.click(config.button)?;
@@ -414,5 +406,61 @@ mod tests {
         });
         assert!(result.is_err());
         assert!(!engine.is_running());
+    }
+
+    #[test]
+    fn zero_jitter_yields_the_exact_interval() {
+        let cfg = ClickConfig {
+            interval_ms: 100,
+            ..Default::default()
+        };
+        let mut rng = Rng::new();
+        assert_eq!(next_interval(&cfg, &mut rng), Duration::from_millis(100));
+    }
+
+    #[test]
+    fn interval_jitter_stays_within_its_percentage_band() {
+        let cfg = ClickConfig {
+            interval_ms: 100,
+            jitter: crate::config::Jitter {
+                interval_pct: 50,
+                position_px: 0,
+            },
+            ..Default::default()
+        };
+        let mut rng = Rng::new();
+        for _ in 0..10_000 {
+            let ms = next_interval(&cfg, &mut rng).as_millis() as u64;
+            assert!((50..=150).contains(&ms), "interval {ms} ms left the ±50% band");
+        }
+    }
+
+    #[test]
+    fn jitter_never_waits_less_than_one_millisecond() {
+        let cfg = ClickConfig {
+            interval_ms: 1,
+            jitter: crate::config::Jitter {
+                interval_pct: 100,
+                position_px: 0,
+            },
+            ..Default::default()
+        };
+        let mut rng = Rng::new();
+        for _ in 0..10_000 {
+            assert!(next_interval(&cfg, &mut rng) >= Duration::from_millis(1));
+        }
+    }
+
+    #[test]
+    fn position_offset_is_zero_for_zero_radius_and_bounded_otherwise() {
+        let mut rng = Rng::new();
+        assert_eq!(jitter_offset(0, &mut rng), (0, 0));
+        for _ in 0..10_000 {
+            let (dx, dy) = jitter_offset(5, &mut rng);
+            assert!(
+                dx.abs() <= 5 && dy.abs() <= 5,
+                "offset ({dx}, {dy}) exceeds radius 5"
+            );
+        }
     }
 }

@@ -54,3 +54,23 @@ pub fn handle_toggle<R: Runtime>(app: &AppHandle<R>) {
         Err(e) => log::error!("hotkey toggle failed: {e}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a_bare_function_key() {
+        assert!(parse_hotkey("F6").is_ok());
+    }
+
+    #[test]
+    fn parses_a_modified_combination() {
+        assert!(parse_hotkey("CmdOrCtrl+Shift+K").is_ok());
+    }
+
+    #[test]
+    fn rejects_an_empty_accelerator() {
+        assert!(parse_hotkey("").is_err());
+    }
+}

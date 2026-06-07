@@ -38,35 +38,25 @@ pub enum ClickType {
 }
 
 /// Where the click lands.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "lowercase")]
 pub enum Position {
     /// Click wherever the cursor currently is.
+    #[default]
     Current,
     /// Move the cursor to a fixed screen coordinate before each click.
     Fixed { x: i32, y: i32 },
 }
 
-impl Default for Position {
-    fn default() -> Self {
-        Self::Current
-    }
-}
-
 /// How many times to click before stopping.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum Repeat {
     /// Keep clicking until the user stops it.
+    #[default]
     UntilStopped,
     /// Click exactly `times` times, then stop automatically.
     Count { times: u64 },
-}
-
-impl Default for Repeat {
-    fn default() -> Self {
-        Self::UntilStopped
-    }
 }
 
 /// Optional per-click randomization so the clicking looks less robotic.
@@ -146,12 +136,12 @@ impl ClickConfig {
                 self.interval_ms
             )));
         }
-        if let Repeat::Count { times } = self.repeat {
-            if times == 0 {
-                return Err(Error::InvalidConfig(
-                    "click count must be at least 1".to_owned(),
-                ));
-            }
+        if let Repeat::Count { times } = self.repeat
+            && times == 0
+        {
+            return Err(Error::InvalidConfig(
+                "click count must be at least 1".to_owned(),
+            ));
         }
         if self.jitter.interval_pct > 100 {
             return Err(Error::InvalidConfig(

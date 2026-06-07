@@ -26,9 +26,9 @@ impl WindowsBackend {
         }
     }
 
-    /// Sends a single mouse event carrying `flags`.
-    fn send(flags: MOUSE_EVENT_FLAGS) -> Result<()> {
-        let input = INPUT {
+    /// Builds a single mouse event carrying `flags`.
+    fn mouse_event(flags: MOUSE_EVENT_FLAGS) -> INPUT {
+        INPUT {
             r#type: INPUT_MOUSE,
             Anonymous: INPUT_0 {
                 mi: MOUSEINPUT {
@@ -36,15 +36,21 @@ impl WindowsBackend {
                     ..Default::default()
                 },
             },
-        };
+        }
+    }
 
-        // SAFETY: `input` is a fully-initialized mouse event; the slice length
-        // matches the implicit count and `cbSize` is the size of one `INPUT`.
-        let sent = unsafe { SendInput(&[input], std::mem::size_of::<INPUT>() as i32) };
-        if sent == 0 {
-            return Err(Error::Input(
-                "SendInput delivered no events (possibly blocked by UIPI)".to_owned(),
-            ));
+    /// Injects `events` as one batch. A single `SendInput` call is atomic with
+    /// respect to other input sources, so nothing can slip in between (e.g.)
+    /// a button-press and its release.
+    fn send_all(events: &[INPUT]) -> Result<()> {
+        // SAFETY: every element is a fully-initialized mouse event and `cbSize`
+        // is the size of one `INPUT`, exactly as `SendInput` requires.
+        let sent = unsafe { SendInput(events, std::mem::size_of::<INPUT>() as i32) };
+        if sent as usize != events.len() {
+            return Err(Error::Input(format!(
+                "SendInput delivered {sent} of {} events (possibly blocked by UIPI)",
+                events.len()
+            )));
         }
         Ok(())
     }
@@ -53,8 +59,8 @@ impl WindowsBackend {
 impl InputBackend for WindowsBackend {
     fn click(&self, button: MouseButton) -> Result<()> {
         let (down, up) = Self::button_flags(button);
-        Self::send(down)?;
-        Self::send(up)
+        // Press and release in one call so the pair is delivered atomically.
+        Self::send_all(&[Self::mouse_event(down), Self::mouse_event(up)])
     }
 
     fn move_cursor(&self, point: Point) -> Result<()> {

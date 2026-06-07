@@ -81,9 +81,9 @@ pub fn run() {
 
             // Wire up the input backend, engine, and persisted configuration.
             let backend = input::platform_backend()?;
-            let engine = ClickerEngine::new(backend);
+            let engine = ClickerEngine::new(std::sync::Arc::clone(&backend));
             let config = persistence::load(app.handle());
-            app.manage(AppState::new(engine, config.clone()));
+            app.manage(AppState::new(engine, backend, config.clone()));
 
             // Register the global toggle hotkey. A failure here is non-fatal:
             // the app still works through the on-screen Start/Stop button.

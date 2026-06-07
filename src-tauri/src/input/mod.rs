@@ -51,7 +51,7 @@ pub use windows::WindowsBackend;
 /// Returns an error if the backend cannot be initialized.
 #[cfg(windows)]
 pub fn platform_backend() -> Result<Arc<dyn InputBackend>> {
-    Ok(Arc::new(WindowsBackend::default()))
+    Ok(Arc::new(WindowsBackend))
 }
 
 /// Fallback no-op backend so the crate still compiles and tests run on

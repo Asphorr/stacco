@@ -23,9 +23,10 @@ mod state;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton as TrayButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, Runtime, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 
+use crate::config::CloseBehavior;
 use crate::engine::ClickerEngine;
 use crate::state::AppState;
 
@@ -48,12 +49,24 @@ pub fn run() {
                 .build(),
         )
         .on_window_event(|window, event| {
-            // Closing hides to the tray instead of quitting, so the app keeps
-            // running in the background and the global hotkey still works.
-            // Use the tray's "Quit" entry to exit for real.
+            // Closing follows the user's saved preference. Until they pick one,
+            // a dialog asks whether to hide to the tray or quit — so nobody is
+            // surprised that clicking keeps going after "closing".
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                let behavior = window
+                    .try_state::<AppState>()
+                    .map_or(CloseBehavior::Tray, |s| s.close_behavior());
+                match behavior {
+                    CloseBehavior::Quit => window.app_handle().exit(0),
+                    CloseBehavior::Tray => {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    CloseBehavior::Ask => {
+                        api.prevent_close();
+                        let _ = window.emit("clicker:close-requested", ());
+                    }
+                }
             }
         })
         .setup(|app| {
@@ -127,6 +140,7 @@ pub fn run() {
             commands::get_cursor_position,
             commands::set_hotkey,
             commands::save_config,
+            commands::apply_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

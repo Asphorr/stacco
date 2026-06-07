@@ -34,6 +34,10 @@ const statusText = $("statusText");
 const clickCount = $("clickCount");
 const toggleBtn = $("toggleBtn");
 const message = $("message");
+const closeDialog = $("closeDialog");
+const closeRemember = $("closeRemember");
+const closeTray = $("closeTray");
+const closeQuit = $("closeQuit");
 
 /** Mirrors the engine's running state so we only touch the DOM on transitions. */
 let running = false;
@@ -212,6 +216,7 @@ function readConfig() {
     repeat,
     jitter,
     hotkey: hotkeyInput.value.trim() || "F6",
+    closeBehavior: getSeg("closeBehavior") || "ask",
   };
 }
 
@@ -238,6 +243,7 @@ function applyConfig(cfg) {
   hotkeyInput.value = cfg.hotkey;
   jitterInterval.value = cfg.jitter?.intervalPct ?? 0;
   jitterPosition.value = cfg.jitter?.positionPx ?? 0;
+  setSeg("closeBehavior", cfg.closeBehavior || "ask");
   updateConditionalPanels();
 }
 
@@ -421,6 +427,39 @@ async function wireWindowChrome() {
   }
 }
 
+// ---------- Close dialog (macOS-style alert) ----------
+function showCloseDialog() {
+  closeDialog.classList.remove("hidden");
+  closeTray.focus();
+}
+
+function hideCloseDialog() {
+  closeDialog.classList.add("hidden");
+}
+
+/** Tells the backend how to close, optionally remembering the choice. */
+async function resolveClose(quit) {
+  const remember = closeRemember.checked;
+  if (remember) setSeg("closeBehavior", quit ? "quit" : "tray");
+  try {
+    await invoke("apply_close", { quit, remember });
+  } catch (err) {
+    showMessage(String(err));
+  }
+  hideCloseDialog();
+}
+
+function wireCloseDialog() {
+  closeTray.addEventListener("click", () => resolveClose(false));
+  closeQuit.addEventListener("click", () => resolveClose(true));
+  document.addEventListener("keydown", (e) => {
+    // Escape cancels the close (keeps the window open).
+    if (e.key === "Escape" && !closeDialog.classList.contains("hidden")) {
+      hideCloseDialog();
+    }
+  });
+}
+
 // ---------- Init ----------
 async function init() {
   if (!invoke) {
@@ -434,13 +473,16 @@ async function init() {
   }
 
   wireEvents();
+  wireCloseDialog();
   await wireWindowChrome();
   await pollStatus();
   setInterval(pollStatus, STATUS_POLL_MS);
 
-  // Instant UI update when the global hotkey toggles the engine.
   if (listen) {
+    // Instant UI update when the global hotkey toggles the engine.
     await listen("clicker:toggled", pollStatus);
+    // The backend asks how to close when no preference is saved yet.
+    await listen("clicker:close-requested", showCloseDialog);
   }
 }
 

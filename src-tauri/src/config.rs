@@ -81,6 +81,19 @@ pub struct Jitter {
     pub position_px: u32,
 }
 
+/// What closing the window does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CloseBehavior {
+    /// Ask with a dialog each time, until the user picks one and remembers it.
+    #[default]
+    Ask,
+    /// Hide to the system tray, keeping the app (and the hotkey) alive.
+    Tray,
+    /// Quit the application.
+    Quit,
+}
+
 /// A complete, validated description of an autoclick session.
 ///
 /// `#[serde(default)]` makes deserialization tolerant of missing fields, so an
@@ -102,6 +115,8 @@ pub struct ClickConfig {
     pub jitter: Jitter,
     /// The global toggle hotkey, e.g. `"F6"` or `"CmdOrCtrl+Shift+K"`.
     pub hotkey: String,
+    /// What closing the window does (ask / tray / quit).
+    pub close_behavior: CloseBehavior,
 }
 
 impl Default for ClickConfig {
@@ -114,6 +129,7 @@ impl Default for ClickConfig {
             repeat: Repeat::UntilStopped,
             jitter: Jitter::default(),
             hotkey: "F6".to_owned(),
+            close_behavior: CloseBehavior::default(),
         }
     }
 }
@@ -201,6 +217,7 @@ mod tests {
                 position_px: 3,
             },
             hotkey: "CmdOrCtrl+K".to_owned(),
+            close_behavior: CloseBehavior::Tray,
         };
         let json = serde_json::to_string(&cfg).unwrap();
         let back: ClickConfig = serde_json::from_str(&json).unwrap();

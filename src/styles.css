@@ -90,6 +90,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  /* Positioned + clipped so the close-dialog overlay stays inside the rounded
+     card and never spills into the transparent shadow margin. */
+  position: relative;
   background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
   border: 0.5px solid var(--border);
   border-radius: var(--win-radius);
@@ -631,4 +634,126 @@ body {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ---------- macOS-style alert (close dialog) ---------- */
+.alert-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.alert-overlay.hidden {
+  display: none;
+}
+
+.alert {
+  width: 100%;
+  max-width: 274px;
+  padding: 18px 18px 16px;
+  text-align: center;
+  background: var(--menu-bg);
+  border: 0.5px solid var(--menu-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  animation: alert-in 0.16s ease;
+}
+
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.alert-icon {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+}
+
+.alert-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.alert-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.alert-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.alert-remember input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.alert-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.alert-btn {
+  flex: 1;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+
+.alert-btn:hover {
+  background: var(--ghost-hover);
+}
+
+.alert-btn.primary {
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.alert-btn.primary:hover {
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  filter: brightness(1.08);
+}
+
+.alert-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3.5px var(--ring);
 }

@@ -114,6 +114,16 @@
         </div>
       </section>
 
+      <!-- Close behavior -->
+      <section class="field">
+        <label class="field-label">On window close</label>
+        <div class="segmented" data-group="closeBehavior">
+          <button type="button" class="seg" data-value="ask">Ask</button>
+          <button type="button" class="seg" data-value="tray">Tray</button>
+          <button type="button" class="seg" data-value="quit">Quit</button>
+        </div>
+      </section>
+
       <!-- Live stats + main action -->
       <div class="stats">
         <span class="stats-label">Clicks</span>
@@ -124,6 +134,25 @@
 
       <p id="message" class="message" role="status" aria-live="polite"></p>
       </main>
+
+      <div id="closeDialog" class="alert-overlay hidden" role="presentation">
+        <div class="alert" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
+          <img class="alert-icon" src="icon.png" alt="" />
+          <h2 id="alertTitle" class="alert-title">Close Stacco?</h2>
+          <p class="alert-text">
+            Stacco can keep running in the tray, where the hotkey still works —
+            or quit completely.
+          </p>
+          <label class="alert-remember">
+            <input type="checkbox" id="closeRemember" checked />
+            Remember my choice
+          </label>
+          <div class="alert-buttons">
+            <button type="button" class="alert-btn" id="closeQuit">Quit</button>
+            <button type="button" class="alert-btn primary" id="closeTray">Keep in Tray</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="main.js"></script>

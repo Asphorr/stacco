@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use crate::config::ClickConfig;
+use crate::config::{ClickConfig, CloseBehavior};
 use crate::engine::ClickerEngine;
 
 /// Managed by Tauri and retrieved in commands via `State<'_, AppState>`.
@@ -36,5 +36,14 @@ impl AppState {
     /// Replaces the stored configuration.
     pub fn set_config(&self, config: ClickConfig) {
         *self.config.lock().expect("config mutex poisoned") = config;
+    }
+
+    /// The configured behavior for closing the window.
+    #[must_use]
+    pub fn close_behavior(&self) -> CloseBehavior {
+        self.config
+            .lock()
+            .expect("config mutex poisoned")
+            .close_behavior
     }
 }

@@ -3,9 +3,9 @@
 //! Each command is a thin adapter: validate, delegate to the engine/state, and
 //! return a `Result` whose error serializes to a string for the frontend.
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
-use crate::config::ClickConfig;
+use crate::config::{ClickConfig, CloseBehavior};
 use crate::engine::Status;
 use crate::error::Result;
 use crate::input::Point;
@@ -68,4 +68,31 @@ pub fn set_hotkey(app: AppHandle, hotkey: String, state: State<'_, AppState>) ->
 #[tauri::command]
 pub fn save_config(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
     persistence::save(&app, &state.config())
+}
+
+/// Resolves the close dialog: optionally remembers the choice as the new close
+/// behavior, then hides to the tray or quits.
+#[tauri::command]
+pub fn apply_close(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    quit: bool,
+    remember: bool,
+) -> Result<()> {
+    if remember {
+        let mut config = state.config();
+        config.close_behavior = if quit {
+            CloseBehavior::Quit
+        } else {
+            CloseBehavior::Tray
+        };
+        state.set_config(config.clone());
+        persistence::save(&app, &config)?;
+    }
+    if quit {
+        app.exit(0);
+    } else if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    Ok(())
 }

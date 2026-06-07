@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stacco</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="window">
+      <div class="titlebar" data-tauri-drag-region>
+        <div class="traffic-lights">
+          <button type="button" class="light close" id="winClose" aria-label="Close window"></button>
+          <button type="button" class="light minimize" id="winMin" aria-label="Minimize window"></button>
+          <button type="button" class="light zoom" id="winZoom" aria-label="Toggle always on top" tabindex="-1"></button>
+        </div>
+        <span class="titlebar-title" data-tauri-drag-region>Stacco</span>
+        <div id="statusPill" class="pill" data-running="false">
+          <span class="dot"></span>
+          <span id="statusText">Idle</span>
+        </div>
+      </div>
+
+      <main class="app">
+      <!-- Interval -->
+      <section class="field">
+        <label class="field-label" for="intervalValue">Interval</label>
+        <div class="row">
+          <input id="intervalValue" class="input" type="number" min="1" value="100" />
+          <div id="intervalUnit" class="dropdown" data-value="ms">
+            <button type="button" class="dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="dropdown-label">ms</span>
+              <svg class="dropdown-chevron" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.5 6.5 5 4l2.5 2.5M2.5 9.5 5 12l2.5-2.5" />
+              </svg>
+            </button>
+            <ul class="dropdown-menu" role="listbox">
+              <li class="dropdown-item" role="option" data-value="ms">ms</li>
+              <li class="dropdown-item" role="option" data-value="s">sec</li>
+              <li class="dropdown-item" role="option" data-value="min">min</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Jitter / randomness -->
+      <section class="field">
+        <label class="field-label">Jitter (randomness)</label>
+        <div class="row">
+          <input id="jitterInterval" class="input" type="number" min="0" max="100" value="0" />
+          <span class="suffix">% time</span>
+          <input id="jitterPosition" class="input" type="number" min="0" value="0" />
+          <span class="suffix">px pos</span>
+        </div>
+      </section>
+
+      <!-- Mouse button -->
+      <section class="field">
+        <label class="field-label">Mouse button</label>
+        <div class="segmented" data-group="button">
+          <button type="button" class="seg" data-value="left">Left</button>
+          <button type="button" class="seg" data-value="right">Right</button>
+          <button type="button" class="seg" data-value="middle">Middle</button>
+        </div>
+      </section>
+
+      <!-- Click type -->
+      <section class="field">
+        <label class="field-label">Click type</label>
+        <div class="segmented" data-group="clickType">
+          <button type="button" class="seg" data-value="single">Single</button>
+          <button type="button" class="seg" data-value="double">Double</button>
+        </div>
+      </section>
+
+      <!-- Position -->
+      <section class="field">
+        <label class="field-label">Position</label>
+        <div class="segmented" data-group="position">
+          <button type="button" class="seg" data-value="current">At cursor</button>
+          <button type="button" class="seg" data-value="fixed">Fixed point</button>
+        </div>
+        <div id="fixedPanel" class="subpanel hidden">
+          <div class="row">
+            <input id="posX" class="input" type="number" value="0" placeholder="X" />
+            <input id="posY" class="input" type="number" value="0" placeholder="Y" />
+            <button id="captureBtn" type="button" class="ghost-btn">Capture</button>
+          </div>
+          <p class="hint">Capture waits 3 s, then reads the cursor position.</p>
+        </div>
+      </section>
+
+      <!-- Repeat -->
+      <section class="field">
+        <label class="field-label">Repeat</label>
+        <div class="segmented" data-group="repeat">
+          <button type="button" class="seg" data-value="until_stopped">Until stopped</button>
+          <button type="button" class="seg" data-value="count">Fixed count</button>
+        </div>
+        <div id="countPanel" class="subpanel hidden">
+          <div class="row">
+            <input id="repeatTimes" class="input" type="number" min="1" value="50" />
+            <span class="suffix">clicks</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hotkey -->
+      <section class="field">
+        <label class="field-label" for="hotkeyInput">Toggle hotkey</label>
+        <div class="row">
+          <input id="hotkeyInput" class="input" type="text" value="F6" spellcheck="false" />
+          <button id="hotkeyBtn" type="button" class="ghost-btn">Set</button>
+        </div>
+      </section>
+
+      <!-- Live stats + main action -->
+      <div class="stats">
+        <span class="stats-label">Clicks</span>
+        <span id="clickCount" class="stats-value">0</span>
+      </div>
+
+      <button id="toggleBtn" class="action-btn">Start</button>
+
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+      </main>
+    </div>
+
+    <script src="main.js"></script>
+  </body>
+</html>

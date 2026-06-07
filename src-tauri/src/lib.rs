@@ -1,0 +1,142 @@
+//! Stacco — Tauri backend.
+//!
+//! Module map:
+//! * [`config`]      — strongly-typed, validated click settings.
+//! * [`input`]       — `InputBackend` trait + Win32 `SendInput` implementation.
+//! * [`engine`]      — the worker thread that actually clicks.
+//! * [`state`]       — shared application state managed by Tauri.
+//! * [`hotkey`]      — global toggle hotkey registration and handling.
+//! * [`persistence`] — load/save the config to the user's config dir.
+//! * [`commands`]    — the `invoke` IPC surface exposed to the webview.
+//! * [`error`]       — the crate-wide error type.
+
+#![warn(clippy::all)]
+
+mod commands;
+mod config;
+mod engine;
+mod error;
+mod hotkey;
+mod input;
+mod persistence;
+mod state;
+
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{MouseButton as TrayButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, Runtime, WindowEvent};
+use tauri_plugin_global_shortcut::ShortcutState;
+
+use crate::engine::ClickerEngine;
+use crate::state::AppState;
+
+/// Builds and runs the Tauri application.
+///
+/// # Panics
+/// Panics only if the Tauri runtime itself fails to start, which is an
+/// unrecoverable initialization error.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    // React on key-down only; ignore the matching key-up.
+                    if event.state() == ShortcutState::Pressed {
+                        hotkey::handle_toggle(app);
+                    }
+                })
+                .build(),
+        )
+        .on_window_event(|window, event| {
+            // Closing hides to the tray instead of quitting, so the app keeps
+            // running in the background and the global hotkey still works.
+            // Use the tray's "Quit" entry to exit for real.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
+        .setup(|app| {
+            // Verbose logging in debug builds only.
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+
+            // Wire up the input backend, engine, and persisted configuration.
+            let backend = input::platform_backend()?;
+            let engine = ClickerEngine::new(backend);
+            let config = persistence::load(app.handle());
+            app.manage(AppState::new(engine, config.clone()));
+
+            // Register the global toggle hotkey. A failure here is non-fatal:
+            // the app still works through the on-screen Start/Stop button.
+            if let Err(e) = hotkey::set_toggle_hotkey(app.handle(), &config.hotkey) {
+                log::warn!("could not register hotkey '{}': {e}", config.hotkey);
+            }
+
+            // System tray: keeps the app available while the window is hidden.
+            // Left-click shows the window; the menu offers Show / Start-Stop / Quit.
+            let handle = app.handle().clone();
+            if let Some(icon) = handle.default_window_icon().cloned() {
+                let show_i = MenuItemBuilder::with_id("show", "Show Window").build(&handle)?;
+                let toggle_i = MenuItemBuilder::with_id("toggle", "Start / Stop").build(&handle)?;
+                let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(&handle)?;
+                let menu = MenuBuilder::new(&handle)
+                    .item(&show_i)
+                    .item(&toggle_i)
+                    .separator()
+                    .item(&quit_i)
+                    .build()?;
+
+                TrayIconBuilder::with_id("main-tray")
+                    .icon(icon)
+                    .tooltip("Stacco")
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id().as_ref() {
+                        "show" => show_main_window(app),
+                        "toggle" => hotkey::handle_toggle(app),
+                        "quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: TrayButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            show_main_window(tray.app_handle());
+                        }
+                    })
+                    .build(&handle)?;
+            }
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::get_config,
+            commands::set_config,
+            commands::start,
+            commands::stop,
+            commands::get_status,
+            commands::get_cursor_position,
+            commands::set_hotkey,
+            commands::save_config,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+/// Brings the main window back to the foreground (from the tray or minimized).
+fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}

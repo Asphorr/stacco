@@ -1,0 +1,12 @@
+# Rust / Cargo build artifacts
+/src-tauri/target/
+
+# Tauri generated schemas
+/src-tauri/gen/schemas/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

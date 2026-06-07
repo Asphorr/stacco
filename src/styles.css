@@ -1,0 +1,634 @@
+/* Stacco — macOS Sonoma-inspired dark theme.
+   No build step, no external fonts: relies on the system UI font stack. */
+
+:root {
+  --bg-top: #1f1f21;
+  --bg-bottom: #161617;
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-strong: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f5f5f7;
+  --text-dim: #98989d;
+  --accent: #0a84ff;
+  --accent-hover: #2a96ff;
+  --danger: #ff453a;
+  --danger-hover: #ff5c52;
+  --success: #30d158;
+  --radius: 11px;
+  --radius-lg: 14px;
+  --win-radius: 12px;
+  --ghost-hover: rgba(255, 255, 255, 0.16);
+  --tl-inactive: #565659;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45);
+  --ring: rgba(10, 132, 255, 0.4);
+  --toolbar: rgba(255, 255, 255, 0.025);
+  --top-edge: rgba(255, 255, 255, 0.08);
+  --field-inset: inset 0 1px 1.5px rgba(0, 0, 0, 0.22);
+  --gloss: rgba(255, 255, 255, 0.12);
+  --menu-bg: rgba(44, 44, 46, 0.82);
+  --menu-border: rgba(255, 255, 255, 0.12);
+}
+
+/* Follows the Windows light theme automatically (no JS needed). */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-top: #fdfdfd;
+    --bg-bottom: #efeff1;
+    --surface: rgba(0, 0, 0, 0.04);
+    --surface-strong: rgba(0, 0, 0, 0.07);
+    --border: rgba(0, 0, 0, 0.12);
+    --border-strong: rgba(0, 0, 0, 0.2);
+    --text: #1d1d1f;
+    --text-dim: #6e6e73;
+    --accent: #007aff;
+    --accent-hover: #1a8cff;
+    --danger: #ff3b30;
+    --danger-hover: #ff5247;
+    --success: #34c759;
+    --ghost-hover: rgba(0, 0, 0, 0.1);
+    --tl-inactive: #c6c6c8;
+    --shadow: 0 14px 34px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+    --ring: rgba(0, 122, 255, 0.3);
+    --toolbar: rgba(0, 0, 0, 0.015);
+    --top-edge: rgba(255, 255, 255, 0.7);
+    --field-inset: inset 0 1px 1.5px rgba(0, 0, 0, 0.06);
+    --gloss: rgba(255, 255, 255, 0.28);
+    --menu-bg: rgba(250, 250, 252, 0.85);
+    --menu-border: rgba(0, 0, 0, 0.1);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, "SF Pro Text", "SF Pro Display", "SF Pro",
+    "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  background: transparent;
+  padding: 26px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+/* The rounded, shadowed "window" card. The transparent body padding around
+   it is the room the drop shadow needs to render (Windows 10 cannot round or
+   shadow a borderless window itself, so we fake both with a transparent
+   window + CSS — this also works unchanged on Windows 11). */
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  border: 0.5px solid var(--border);
+  border-radius: var(--win-radius);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--top-edge);
+  overflow: hidden;
+}
+
+/* ---------- Custom title bar (macOS traffic lights) ---------- */
+.titlebar {
+  position: relative;
+  flex: 0 0 auto;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: var(--toolbar);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.titlebar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none; /* drags fall through to the bar */
+}
+
+.titlebar .pill {
+  pointer-events: none; /* status is display-only; allow dragging over it */
+}
+
+.traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.light {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  position: relative;
+  border-radius: 50%;
+  border: 0.5px solid rgba(0, 0, 0, 0.18);
+  cursor: default;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: radial-gradient(
+    circle at 50% 28%,
+    var(--gloss),
+    rgba(255, 255, 255, 0) 65%
+  );
+}
+
+.light:focus {
+  outline: none;
+}
+
+.light.close {
+  background-color: #ff5f57;
+}
+.light.minimize {
+  background-color: #febc2e;
+}
+.light.zoom {
+  background-color: #28c840;
+}
+
+/* Glyphs fade in when hovering the cluster, exactly like macOS. */
+.light::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.traffic-lights:hover .light.close::before {
+  content: "\2715";
+  opacity: 1;
+}
+.traffic-lights:hover .light.minimize::before {
+  content: "\2212";
+  opacity: 1;
+}
+.traffic-lights:hover .light.zoom::before {
+  content: "+";
+  opacity: 1;
+}
+
+/* Always-on-top active: the green light keeps its glyph lit. */
+.light.zoom.pinned::before {
+  content: "+";
+  opacity: 1;
+}
+
+/* Inactive window: lights go grey until hovered (matches macOS). */
+.window.unfocused .light {
+  background: var(--tl-inactive);
+}
+.window.unfocused .traffic-lights:hover .light.close {
+  background: #ff5f57;
+}
+.window.unfocused .traffic-lights:hover .light.minimize {
+  background: #febc2e;
+}
+.window.unfocused .traffic-lights:hover .light.zoom {
+  background: #28c840;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 20px 20px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ---------- Header ---------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pill[data-running="true"] {
+  color: var(--success);
+}
+
+.pill[data-running="true"] .dot {
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.7);
+}
+
+/* ---------- Fields ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input,
+.select {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  box-shadow: var(--field-inset);
+  transition: border-color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.select {
+  flex: 0 0 84px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='16' viewBox='0 0 10 16'%3E%3Cpath fill='none' stroke='%2398989d' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.5 5 4l2.5 2.5M2.5 9.5 5 12l2.5-2.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 28px;
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--accent);
+  background-color: var(--surface-strong);
+  box-shadow: var(--field-inset), 0 0 0 3.5px var(--ring);
+}
+
+.input:disabled,
+.select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.suffix {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ---------- Custom dropdown (macOS popup button + vibrant menu) ---------- */
+.dropdown {
+  position: relative;
+  flex: 0 0 92px;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--field-inset);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.dropdown-trigger:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+.dropdown.open .dropdown-trigger,
+.dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-strong);
+  box-shadow: var(--field-inset), 0 0 0 3.5px var(--ring);
+}
+
+.dropdown-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-chevron {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 16px;
+  margin-left: 6px;
+  color: var(--text-dim);
+  transition: color 0.15s ease;
+}
+
+.dropdown.open .dropdown-chevron {
+  color: var(--accent);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  background: var(--menu-bg);
+  border: 0.5px solid var(--menu-border);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top center;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.dropdown.open .dropdown-menu {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.dropdown-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px 0 26px;
+  font-size: 14px;
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover,
+.dropdown-item.highlight {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dropdown-item.selected::before {
+  content: "\2713";
+  position: absolute;
+  left: 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- Segmented control ---------- */
+.segmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--field-inset);
+}
+
+.seg {
+  flex: 1;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.seg:hover:not(.active):not(:disabled) {
+  color: var(--text);
+}
+
+.seg.active {
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.seg:focus-visible,
+.ghost-btn:focus-visible,
+.action-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3.5px var(--ring);
+}
+
+.segmented:has(.seg:disabled) {
+  opacity: 0.45;
+}
+
+.seg:disabled {
+  cursor: not-allowed;
+}
+
+/* ---------- Sub-panels ---------- */
+.subpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subpanel.hidden {
+  display: none;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.ghost-btn {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ghost-btn:hover:not(:disabled) {
+  background: var(--ghost-hover);
+}
+
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Stats ---------- */
+.stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.stats-label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.stats-value {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Main action button ---------- */
+.action-btn {
+  height: 50px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.action-btn:hover {
+  filter: brightness(1.08);
+}
+
+.action-btn:active {
+  transform: scale(0.99);
+}
+
+.action-btn.running {
+  background: linear-gradient(180deg, var(--danger-hover), var(--danger));
+}
+
+.action-btn.running:hover {
+  filter: brightness(1.08);
+}
+
+/* ---------- Messages ---------- */
+.message {
+  min-height: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--danger);
+}
+
+.message.info {
+  color: var(--text-dim);
+}
+
+/* ---------- macOS finishing touches ---------- */
+::selection {
+  background: var(--ring);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

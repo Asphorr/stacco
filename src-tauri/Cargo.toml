@@ -1,0 +1,52 @@
+[package]
+name = "stacco"
+version = "0.1.0"
+description = "A clean, native Windows autoclicker built with Tauri and Rust."
+authors = ["ferou <misharobloxdiscord@gmail.com>"]
+license = "MIT"
+edition = "2021"
+# Matches the installed toolchain. Combined with the v3 resolver below, Cargo
+# automatically picks dependency versions compatible with this Rust version.
+rust-version = "1.87.0"
+
+# The Tauri command core lives in a library crate so it can be shared between
+# the desktop binary (`main.rs`) and, potentially, integration tests.
+[lib]
+name = "stacco_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.3.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.6.0", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2.3.2"
+tauri-plugin-log = "2"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.18"
+
+# Win32 input synthesis (SendInput) and cursor queries.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61.3", features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# Smaller, faster release binaries. These settings are recommended by the
+# Tauri project for distribution builds.
+[profile.release]
+opt-level = "s"   # optimize for size; the click loop is not compute-bound
+lto = true        # link-time optimization across crates
+codegen-units = 1 # better optimization at the cost of compile time
+panic = "abort"   # no unwinding machinery in the shipped binary
+strip = true      # drop debug symbols from the final artifact
+
+# The v3 resolver is MSRV-aware: it defaults `incompatible-rust-versions` to
+# `fallback`, so dependencies that require a newer rustc than `rust-version`
+# above are automatically resolved to the latest version that still compiles
+# here. This single package acts as its own workspace root to opt in.
+[workspace]
+resolver = "3"
